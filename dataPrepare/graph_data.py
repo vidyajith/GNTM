@@ -3,12 +3,12 @@ from torch_geometric.data import InMemoryDataset
 from torch_geometric.data import Data
 from dataPrepare.utils import VocabEntry
 # from dataPrepare.utils import *
-from utils import *
+# from utils import *
 
 import pandas as pd
 from collections import Counter
 from torch_sparse import SparseTensor
-
+import numpy as np
 
 class PreTextData(object):
     """docstring for MonoTextData"""
@@ -245,7 +245,7 @@ if __name__ == '__main__':
     from settings import *
     from graph_data import GraphDataset
 
-    data = GraphDataset(root=TMN_ADDR,STOPWORD=True, ngram=3, edge_threshold=10)#INITIALLY 10
+    data = GraphDataset(root=NEWS20_ADDR,STOPWORD=True, ngram=3, edge_threshold=10)#INITIALLY 10
     print('docs', len(data))
     print('the whole edge set', data.whole_edge.shape)
     print('data split',Counter(data.data.train.cpu().numpy()))

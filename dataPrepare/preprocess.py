@@ -344,13 +344,13 @@ def eos_unk_pad_emd(nw=300):
 
 
 if __name__ == '__main__':
-    data, vocab = process_dataset(dataset='TMN', STOPWORD=False)
+    data, vocab = process_dataset(dataset='News20', STOPWORD=False)
     print("data_length",len(data))
 
     print("vocab_length",len(vocab))
-    print("addresss",TMN_ADDR)
+    print("addresss",NEWS20_ADDR)
     # TMN_ADDR='C:/Users/rbw19/OneDrive/Desktop/GNTM/data/tmn3/'
-    data.to_csv(TMN_ADDR  + '/overall_stop.csv', header=True, index=False, quoting=1)#convert dataframe to csv file
-    clean_vocab(TMN_ADDR , freq_threshold=5, STOPWORD=True)
-    select_embedding(TMN_ADDR, STOPWORD=True)
+    data.to_csv(NEWS20_ADDR  + '/overall.csv', header=True, index=False, quoting=1)#convert dataframe to csv file
+    clean_vocab(NEWS20_ADDR , freq_threshold=10, STOPWORD=False)
+    select_embedding(NEWS20_ADDR, STOPWORD=False)
     #eos_unk_pad_emd()
