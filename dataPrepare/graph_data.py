@@ -1,10 +1,9 @@
-
-
 import torch
 from torch_geometric.data import InMemoryDataset
 from torch_geometric.data import Data
-from dataPrepare.utils import *
-#from utils import *
+from dataPrepare.utils import VocabEntry
+# from dataPrepare.utils import *
+from utils import *
 
 import pandas as pd
 from collections import Counter
@@ -184,6 +183,8 @@ class GraphDataset(InMemoryDataset):
         self.stop_str = '_stop' if STOPWORD else ''
         self.edge_threshold = edge_threshold
         if vocab is None:
+            print("############ root path ############",self.rootPath)
+            print("##############from graph data#############",self.rootPath + '/vocab%s.txt' % self.stop_str)
             self.vocab = VocabEntry.from_corpus(self.rootPath + '/vocab%s.txt' % self.stop_str, withpad=False)
             # self.vocab.add(';')
         else:
@@ -206,7 +207,7 @@ class GraphDataset(InMemoryDataset):
         pass
 
     def process(self):
-        dataset = PreTextData(self.rootPath + '/overall%s.csv' % self.stop_str, ngram=self.ngram,
+        dataset = PreTextData(self.rootPath  + '/overall%s.csv' % self.stop_str, ngram=self.ngram,
                               vocab=self.vocab, min_length=10, max_length=None,
                               edge_threshold=self.edge_threshold)
                               # TODO important parameter for different datasets
@@ -251,4 +252,3 @@ if __name__ == '__main__':
     print('tokens', data.data.x_w.sum().item())
     print('edges', data.data.edge_w.sum().item())
     print('vocab', len(data.vocab))
-

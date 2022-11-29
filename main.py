@@ -1,4 +1,3 @@
-
 import sys
 import numpy as np
 import torch
@@ -13,6 +12,7 @@ import pandas as pd
 import time
 from torch_geometric.data import DataLoader, Data
 from dataPrepare.utils import VocabEntry
+# from utils import VocabEntry
 import ipdb
 import random
 # torch.set_default_tensor_type(torch.DoubleTensor)
@@ -27,7 +27,7 @@ max_decay = 5
 ANNEAL_RATE =0.00003
 
 
-def init_config():
+def init_config(): #getting some arguments for the model
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='TMN')
     parser.add_argument('--model_type', type=str, default='GDGNNMODEL')
@@ -63,10 +63,11 @@ def init_config():
     # load_path =
     args = parser.parse_args()
      # load_str = '_eval' if args.eval else ''
-    save_dir = ROOTPATH + "/models/%s/%s_%s/" % (args.dataset, args.dataset, args.model_type)
+    save_dir = ROOTPATH + "/models/%s/%s_%s/" % (args.dataset, args.dataset, args.model_type) #some default are there
+    print("###Save dir######",save_dir)
     opt_str = '_%s_m%.2f_lr%.4f' % (args.optimizer, args.momentum, args.learning_rate)
 
-    seed_set = [783435, 101, 202, 303, 404, 505, 606, 707, 808, 909]
+    seed_set = [783435, 101, 202, 303, 404, 505, 606, 707, 808, 909] #what is this ?
     args.seed = seed_set[args.taskid]
 
     if args.model_type in ['GDGNNMODEL']:
@@ -160,8 +161,10 @@ def main(args):
     global dataset, device
     print(args)
     device = torch.device(args.device)
+    print("#######args.dataset####333",args.dataset)
     path = todatapath(args.dataset)
     stop_str = '_stop' if args.STOPWORD else ''
+    print("###########PATH from main file##########33",path)
     dataset = GraphDataset(path, ngram=args.nwindow, STOPWORD=args.STOPWORD)
     train_idxs = [i for i in range(len(dataset)) if dataset[i].train == 1]
     train_data = dataset[train_idxs]

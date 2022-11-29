@@ -79,6 +79,7 @@ class VocabEntry(object):
     @staticmethod
     def from_corpus(fname, withpad=True):
         vocab = VocabEntry(withpad=withpad)
+        fname="C:/Users/rbw19/OneDrive/Desktop/GNTM/data/tmn3/vocab_stop.txt"
         with open(fname) as fin:
             for line in fin:
                 vocab.add(line.strip().split(' ')[0])

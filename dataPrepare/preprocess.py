@@ -2,6 +2,7 @@
 import sys
 sys.path.append("../")
 from settings import *
+from settings import TMN_ADDR
 import re
 import pandas as pd
 import numpy as np
@@ -52,9 +53,9 @@ np.random.seed(6)
 def load_stopwords(lanague='EN'):
     # url: https://github.com/igorbrigadir/stopwords/blob/master/en/gensim.txt
     if lanague == 'EN':
-        stopwords_file ="C:/Users/vidhy/PycharmProjects/GNN/EN_gensim_stopword.txt"
+        stopwords_file ="EN_gensim_stopword.txt"  
     else:
-        stopwords_file = "C:/Users/vidhy/PycharmProjects/GNN/EN_gensim_stopword.txt"
+        stopwords_file = "EN_gensim_stopword.txt"
     with open(stopwords_file, mode='r', encoding='utf-8') as reader:
         for line in reader:
             word = line.strip()
@@ -150,7 +151,7 @@ def process_dataset(dataset='AG', STOPWORD=False):
     elif dataset == 'TMN':
         #path = TMN_ADDR + '\\raw\\'
         #path="C:/Users/vidhy/PycharmProjects/GNN/"
-        data1 = open("C:/Users/vidhy/PycharmProjects/GNN/tagmynews.txt",encoding="utf8").readlines()
+        data1 = open("tagmynews.txt",encoding="utf8").readlines()
         N = int(len(data1)/8) #initial
         #N = int(len(data1) / 4)
         print("length of data divided by 8",N)
@@ -159,9 +160,6 @@ def process_dataset(dataset='AG', STOPWORD=False):
         for i in range(N):
             content = data1[8*i]
             label = data1[8*i+6]
-
-           # content = data1[4 * i]
-           # label = data1[4 * i + 6]
             if label not in ldct:
                 id = len(ldct)
                 ldct[label]=id
@@ -293,7 +291,7 @@ def select_embedding(path, nw=300, STOPWORD=False):
     weights_matrix = np.zeros((len(words), nw))
 
     words_found = {}
-
+    # GLOVE_ADDR='C:/Users/rbw19/OneDrive/Desktop/GNTM/data/word2vec/'
     with open(GLOVE_ADDR + 'glove.840B.{}d.txt'.format(nw), 'rb') as fd:
         for l in fd:
             line = l.decode().split()
@@ -350,7 +348,8 @@ if __name__ == '__main__':
     print("data_length",len(data))
 
     print("vocab_length",len(vocab))
-
+    print("addresss",TMN_ADDR)
+    # TMN_ADDR='C:/Users/rbw19/OneDrive/Desktop/GNTM/data/tmn3/'
     data.to_csv(TMN_ADDR  + '/overall_stop.csv', header=True, index=False, quoting=1)#convert dataframe to csv file
     clean_vocab(TMN_ADDR , freq_threshold=5, STOPWORD=True)
     select_embedding(TMN_ADDR, STOPWORD=True)

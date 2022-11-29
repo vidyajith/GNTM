@@ -1,8 +1,5 @@
-
-
-
-ROOTPATH = 'C:/Users/vidhy/OneDrive/Desktop/TRIAL/'
-DATAPATH = ROOTPATH +'data/'
+ROOTPATH = 'C:/Users/rbw19/OneDrive/Desktop/GNTM'
+DATAPATH = ROOTPATH +'/data/'
 MODELPATH = ROOTPATH + 'models/'
 EN_STOP_WORDS = DATAPATH +'EN_gensim_stopword.txt'
 

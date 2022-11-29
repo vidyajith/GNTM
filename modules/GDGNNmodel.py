@@ -15,138 +15,106 @@ def Expectation_log_Dirichlet(gamma):
 
 class GDGNNModel(nn.Module):  # model under consideration
 
-    def __init__(self, args, word_vec, whole_edge):  #
+    def __init__(self, args, word_vec, whole_edge):  # In pytorch construtor is used to declare variables which holds informations about neural network
         super(GDGNNModel, self).__init__()
-
         # encoder
-
-        self.args = args
+        self.args = args #args is a class which has several functions like vocab_size,ni,fixing,num_topic
         if word_vec is None:
-            self.word_vec = nn.Parameter(torch.Tensor(args.vocab_size, args.ni))
-            nn.init.normal_(self.word_vec, std=0.01)
-            # print("successful 1")
+            self.word_vec = nn.Parameter(torch.Tensor(args.vocab_size, args.ni)) # tunable paramter(Weights) which is twekked during optimization, nn.paramater add all this to a iterator sp that we can use  a loop to update all the parameters
+            nn.init.normal_(self.word_vec, std=0.01) # In PyTorch, we can set the weights of the layer to be sampled from uniform or normal distribution using the uniform_ and normal_ functions.
+            
         else:
             self.word_vec = nn.Parameter(torch.tensor(word_vec))
-            # print("word_vec_from_main1",self.word_vec)
-            # print("size of word vec from main1",self.word_vec.shape)
             if args.fixing:
-                self.word_vec.requires_grad = False
-
-        if args.prior_type == 'Dir2':
+                self.word_vec.requires_grad = False # setting the requires_grad to false ,if true that variable is used for calcukating gradients
+                
+        ####################################################################################
+        if args.prior_type == 'Dir2': # Selecting the type of encoder
             self.encoder = GNNDir2encoder(args, self.word_vec)
         elif args.prior_type == 'Gaussian':
             self.encoder = GNNGaussianencoder(args, self.word_vec)
         else:
             raise ValueError("the specific prior type is not supported")
 
-        self.word_vec_beta = nn.Parameter(torch.Tensor(args.vocab_size, args.ni))
-        nn.init.normal_(self.word_vec_beta, std=0.01)
-        self.topic_vec = nn.Parameter(torch.Tensor(args.num_topic, args.ni))
+        ####################################################################################
+
+        self.word_vec_beta = nn.Parameter(torch.Tensor(args.vocab_size, args.ni)) #tunable paramter(Weights) which is twekked during optimization, nn.paramater add all this to a iterator #returns 0 tensor
+        nn.init.normal_(self.word_vec_beta, std=0.01) #fills the 0 tensor with some values drawn from normal distribution with the mean of 0.01
+
+        self.topic_vec = nn.Parameter(torch.Tensor(args.num_topic, args.ni)) # returns zero tensor
         nn.init.normal_(self.topic_vec)
 
         self.topic_edge_vec = nn.Parameter(torch.Tensor(args.num_topic, 2 * args.ni))
-        self.noedge_vec = nn.Parameter(torch.Tensor(1, 2 * args.ni))
         nn.init.normal_(self.topic_edge_vec)
+
+        self.noedge_vec = nn.Parameter(torch.Tensor(1, 2 * args.ni))
         nn.init.normal_(self.noedge_vec, std=0.01)
 
+        ##################################################################################
         edge_size = whole_edge.size(1)  # 2 x 423
         self.whole_edge = whole_edge
 
-        self.maskrate = torch.tensor(1.0 / (args.num_topic), dtype=torch.float, device=args.device)
+        self.maskrate = torch.tensor(1.0 / (args.num_topic), dtype=torch.float, device=args.device) #tensor with single value
         # self.maskrate = torch.tensor(0.5, dtype=torch.float, device=args.device)
 
-        self.topic_linear = nn.Linear(3 * args.ni, 64, bias=False)
+        self.topic_linear = nn.Linear(3 * args.ni, 64, bias=False) #Applies a linear transformation to the incoming data: y = mx+c
+        """
+        in_features – size of each input sample
+        out_features – size of each output sample
+        bias – If set to False, the layer will not learn an additive bias. Default: True
+        """
 
-        self.enc_params = list(self.encoder.parameters())
+        self.enc_params = list(self.encoder.parameters()) #taking parameters of encoders
         self.dec_params = [self.word_vec_beta, self.topic_vec, self.topic_edge_vec, self.noedge_vec] + list(
-            self.topic_linear.parameters())
+            self.topic_linear.parameters()) #taking parameters of decoder
 
         self.reset_parameters()
 
     def reset_parameters(self):
         # nn.init.normal_(self.topic_linear.weight, std=0.01)
-        nn.init.constant_(self.topic_linear.weight, val=0)
+        nn.init.constant_(self.topic_linear.weight, val=0) #creates a tensor with the dimensions on first attribute and with the value on 2nd 
         # nn.init.constant_(self.topic_linear.bias, val=0)
         pass
 
     def forward(self, batch_data):
 
-        idx_x = batch_data.x
-        # print("idx_x", idx_x)
-        # print("batch_data",batch_data)
-        # print("size of idx_x",idx_x.shape)
-        """
-        print("idx_x",idx_x)
-        type(idx_x)
-
-       # print("size of batch data",batch_data.x)
-        """
+        idx_x = batch_data.x  #data is seperated into several bathches
+        
         si = self.word_vec.shape[0]
-        # print("si",si)
+   
         idx_x = idx_x[idx_x < si]
-        """
-        for i in idx_x:
-            if i > 2197:
-                print("abort")
-                print(i)
-            else:
-                print("clean")
-         """
-        # idx_x=tuple(filter(lambda x: x < 2197, idx_x))
-        # print(idx_x)
-        """
-        for i in idx_x:
-            if i > 2197:
-              print("abort")
-              print(i)
-        """
+        
         x_batch = batch_data.x_batch
 
-        # print("x_batch",x_batch)
         x_batch = x_batch[0:len(idx_x)]
-        # print("idx-w", idx_w)
-        # x_batch= batch_data.x_batch[batch_data.x_batch< 2197]
+        # print("%%%%%%%%%%%%%%%%%Xbatch%%%%%%%%%%%%%%%%%%%",x_batch)
+
 
         idx_w = batch_data.x_w
 
         idx_w = idx_w[0:len(idx_x)]
-        # print("idx-w", idx_w)
+  
 
         edge_w = batch_data.edge_w
         edge_id = batch_data.edge_id
         edge_id_batch = batch_data.edge_id_batch
         edge_index = batch_data.edge_index
-        # edge_index= edge_index[0:len(idx_x)]
+
+        # print("################x_batch.max()##########################",x_batch)
         size = int(x_batch.max().item() + 1)
-        # print("size doubtful",size)
+    
+        
 
-        # compute posterior
-        #####KL theta
+        param, phi = self.encoder(idx_x, idx_w, x_batch, edge_index, edge_w) # passing input to encoder function  # (B, K ) (B*len, K) B*len = B*len(idx_x) 
+       
 
-        param, phi = self.encoder(idx_x, idx_w, x_batch, edge_index, edge_w)  # (B, K ) (B*len, K) B*len = B*len(idx_x)
-        """
+        KL1 = self.encoder.KL_loss(param) 
 
-        #235,235,235,(2,146),(146)
-        print("param",param.shape)
-        print("phi",phi.shape)
-        print("idx.shape",idx_x.shape)
-        print("idw.shape",idx_w.shape)
-        print("xbatch", x_batch.shape)
-        print("edge index",edge_index.shape)
-        print("edge_w.shape", edge_w.shape)
-
-        """
-        KL1 = self.encoder.KL_loss(param)
-
-        # print("doubt clearance")
-
-        #####KL(z)
-        # (batch, max_length)
+        
         if self.args.prior_type in ['Dir2', 'Gaussian']:
             theta = self.encoder.reparameterize(param)
             KL2 = torch.sum(phi * ((phi / (theta[x_batch] + 1e-10) + 1e-10).log()), dim=-1)  # (B*len)
-            # print(len(phi))
-            # print(len((phi / (theta[x_batch] + 1e-10) + 1e-10).log()))
+          
         if self.args.prior_type == 'Dir':
             gamma = param[0]  # (B, K)
             Elogtheta = Expectation_log_Dirichlet(gamma)  # (B, K)
