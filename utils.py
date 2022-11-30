@@ -9,6 +9,8 @@ import requests
 def print_top_words(beta, feature_names, n_top_words=20, common_texts=None):
     print('---------------Printing the Topics------------------')
     topic_set = []
+    L1=[]
+    L2=[]
     beta_idx = np.argsort(beta,axis=-1)[:,::-1]
     for i in range(len(beta)):
         line = " ".join([feature_names[j]
@@ -16,7 +18,21 @@ def print_top_words(beta, feature_names, n_top_words=20, common_texts=None):
         topic_set.append(line.split(' '))
         # topics = identify_topic_in_line(line)
         # print('|'.join(topics))
+        L1.append(i)
+        L2.append(line)
         print('topic{}\t{}'.format(i, line))
+    print("LIST OF TOPICS",L1)
+    print("LIST OF WORDS",L2)
+    # convert list to DataFrame
+    import pandas as pd
+
+    #from sklearn.naive_bayes import MultinomialNB
+    df1 = pd.DataFrame(L1, columns=['TOPICS'])
+    df2 = pd.DataFrame(L2, columns=['WORDS'])
+    import pickle
+    pickle.dump(L1, open('TOPIC15NB.pkl','wb'))
+    pickle.dump(L2, open('WORD15NB.pkl','wb'))
+
     print('---------------End of Topics------------------')
     if common_texts:
         texts = [text.replace(';', '').split(' ') for text in common_texts]
@@ -41,7 +57,6 @@ def print_top_words(beta, feature_names, n_top_words=20, common_texts=None):
                     slist.append('{:6f}'.format(tclist[(i+1)*delta-1]))
                 print(metric, ' '.join(slist))
             print('top_n {} tc {:.6f} npmi {:.6f} uci {:.6f}'.format(top_n, *results))
-
 
 
 
@@ -154,7 +169,9 @@ def eval_top_doctopic(thetas, labels):
 
 
 def eval_km_doctopic(thetas,labels):
-    N = np.max(labels)+1
+    #N = np.max(labels)+1
+    #print("N",N)
+    N=10
     cluster = KMeans(n_clusters=N)
     preds=cluster.fit_predict(thetas)
     p = purity(labels,preds)

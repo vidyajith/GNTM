@@ -1,0 +1,261 @@
+
+from os import sys, path as osp
+sys.path.append(osp.dirname(osp.dirname(osp.dirname(__file__))))
+
+import random
+import argparse
+import warnings
+import numpy as np
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+
+import torch
+from torch_geometric.nn import GNNExplainer
+
+from models import GAT
+from graphlime import GraphLIME
+from other_explainers import LIME, Greedy, Random
+from utils1 import prepare_data, extract_test_nodes, train, evaluate, plot_dist
+
+warnings.filterwarnings('ignore')
+
+INPUT_DIM = {
+    'Cora': 1433,
+    'Pubmed': 500
+}
+
+DIRNAME = osp.dirname(__file__)
+print("dirname",DIRNAME)
+
+
+def build_args():
+    parser = argparse.ArgumentParser()
+
+    # data
+    parser.add_argument('--dataset', type=str, default='Cora', help='dataset')
+    parser.add_argument('--model_epochs', type=int, default=400, help='epochs for training a GNN model')
+    parser.add_argument('--model_lr', type=float, default=0.001, help='learning rate for training model')
+    parser.add_argument('--test_samples', type=int, default=200, help='number of test samples')
+    parser.add_argument('--num_noise', type=int, default=10, help='number of noise features to add')
+
+    # GraphLIME
+    parser.add_argument('--hop', type=int, default=2, help='hops')
+    parser.add_argument('--rho', type=float, default=0.15, help='rho')
+    parser.add_argument('--K', type=int, default=300, help='top-K most importance features')
+
+    # GNNExplainer
+    parser.add_argument('--masks_epochs', type=int, default=200, help='epochs for training a GNNExplainer')
+    parser.add_argument('--masks_lr', type=float, default=0.01, help='learning rate for training GNNExplainer')
+    parser.add_argument('--masks_threshold', type=float, default=0.1, help='threshold of features for GNNExplainer')
+
+    # LIME
+    parser.add_argument('--lime_samples', type=int, default=50, help='generate samples for LIME')
+
+    # Greedy
+    parser.add_argument('--greedy_threshold', type=float, default=0.03, help='threshold of features for Greedy')
+
+    parser.add_argument('--ymax', type=float, default=1.10, help='max of y-axis')
+    parser.add_argument('--seed', type=int, default=42, help='seed')
+
+    args = parser.parse_args()
+
+    return args
+
+
+def check_args(args):
+    assert args.dataset.title() in ['Cora', 'Pubmed']
+
+
+def fix_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+
+
+def find_noise_feats_by_GraphLIME(model, data, args):
+    explainer = GraphLIME(model, hop=args.hop, rho=args.rho)
+
+    node_indices = extract_test_nodes(data, args.test_samples)
+
+    num_noise_feats = []
+
+    for node_idx in tqdm(node_indices, desc='explain node', leave=False):
+        coefs = explainer.explain_node(node_idx, data.x, data.edge_index)
+        print("coefs_graphlime",coefs)
+
+
+
+        feat_indices = coefs.argsort()[-args.K:]
+        feat_indices = [idx for idx in feat_indices if coefs[idx] > 0.0]
+
+        num_noise_feat = sum(idx >= INPUT_DIM[args.dataset] for idx in feat_indices)
+        num_noise_feats.append(num_noise_feat)
+    plt.figure(figsize=(16, 4))
+
+    x = list(range(data.num_node_features))
+
+    plt.bar(x, coefs, width=5.0)
+    plt.xlabel('Feature Index_GRAPHLIME')
+    plt.ylabel(r'$\beta$');
+    plt.show()
+    print(f'The {np.argmax(coefs)}-th feature is the most important.')
+
+    return num_noise_feats
+
+
+def find_noise_feats_by_GNNExplainer(model, data, args):
+    explainer = GNNExplainer(model, epochs=args.masks_epochs, lr=args.masks_lr, num_hops=args.hop, log=False)
+
+    node_indices = extract_test_nodes(data, args.test_samples)
+
+    num_noise_feats = []
+    for node_idx in tqdm(node_indices, desc='explain node', leave=False):
+        node_feat_mask, edge_mask = explainer.explain_node(node_idx, data.x, data.edge_index)
+        node_feat_mask = node_feat_mask.detach().cpu().numpy()
+
+        feat_indices = node_feat_mask.argsort()[-args.K:]
+        feat_indices = [idx for idx in feat_indices if node_feat_mask[idx] > args.masks_threshold]
+
+        num_noise_feat = sum(idx >= INPUT_DIM[args.dataset] for idx in feat_indices)
+        num_noise_feats.append(num_noise_feat)
+
+    import matplotlib.pyplot as plt
+    from pylab import rcParams
+    rcParams['figure.figsize'] = 20, 15
+
+    # Visualize result
+    ax, G = explainer.visualize_subgraph(node_idx, data.edge_index, edge_mask, y=data.y)
+    plt.show()
+    """
+    plt.figure(figsize=(16, 4))
+
+    x = list(range(data.num_node_features))
+
+    #plt.bar(x,node_feat_mask, width=5.0)
+    plt.xlabel('Feature Index_GNNEXPLAINER')
+    plt.ylabel(r'$\beta$');
+    plt.show()
+    print(f'The {np.argmax(coefs)}-th feature is the most important.')
+    
+    """
+    return num_noise_feats
+
+
+def find_noise_feats_by_LIME(model, data, args):
+    explainer = LIME(model, args.lime_samples)
+
+    node_indices = extract_test_nodes(data, args.test_samples)
+
+    num_noise_feats = []
+    for node_idx in tqdm(node_indices, desc='explain node', leave=False):
+        coefs = explainer.explain_node(node_idx, data.x, data.edge_index)
+        coefs = np.abs(coefs)
+
+        feat_indices = coefs.argsort()[-args.K:]
+
+        num_noise_feat = sum(idx >= INPUT_DIM[args.dataset] for idx in feat_indices)
+        num_noise_feats.append(num_noise_feat)
+    plt.figure(figsize=(16, 4))
+
+    x = list(range(data.num_node_features))
+
+    plt.bar(x, coefs, width=5.0)
+    plt.xlabel('Feature Index_LIME')
+    plt.ylabel(r'$\beta$');
+    plt.show()
+    print(f'The {np.argmax(coefs)}-th feature is the most important.')
+    return num_noise_feats
+
+
+def find_noise_feats_by_greedy(model, data, args):
+    explainer = Greedy(model)
+
+    node_indices = extract_test_nodes(data, args.test_samples)
+
+    delta_probas = explainer.explain_node(node_indices, data.x, data.edge_index)  # (#test_smaples, #feats)
+    feat_indices = delta_probas.argsort(axis=-1)[:, -args.K:]  # (#test_smaples, K)
+
+    num_noise_feats = []
+    for node_proba, node_feat_indices in zip(delta_probas, feat_indices):
+        node_feat_indices = [feat_idx for feat_idx in node_feat_indices if node_proba[feat_idx] > args.greedy_threshold]
+        num_noise_feat = sum(feat_idx >= INPUT_DIM[args.dataset] for feat_idx in node_feat_indices)
+        num_noise_feats.append(num_noise_feat)
+
+    return num_noise_feats
+
+
+def find_noise_feats_by_random(data, args):
+    num_feats = data.x.size(1)
+    explainer = Random(num_feats, args.K)
+
+    num_noise_feats = []
+    for node_idx in tqdm(range(args.test_samples), desc='explain node', leave=False):
+        feat_indices = explainer.explain_node()
+        noise_feat = (feat_indices >= INPUT_DIM[args.dataset]).sum()
+        num_noise_feats.append(noise_feat)
+
+    return num_noise_feats
+
+
+def main():
+    args = build_args()
+    check_args(args)
+
+    fix_seed(args.seed)
+
+    data = prepare_data(args)
+
+    hparams = {
+        'input_dim': data.x.size(1),
+        'hidden_dim': 16,
+        'output_dim': max(data.y).item() + 1
+    }
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = GAT(**hparams).to(device)
+    data = data.to(device)
+
+    train(model, data, args)
+    # model.load_state_dict(torch.load('./examples/noise_features/model.pth'))
+    test_loss, test_acc = evaluate(model, data, mask=data.test_mask)
+    print('test_loss: {:.4f}, test_acc: {:.4f}'.format(test_loss, test_acc))
+
+    if test_acc < 0.55:
+        print('bad model! Please re-run!')
+        exit()
+    print("DIRNAME",DIRNAME)
+    print("------------------------------------------------")
+    print('=== Explain by GraphLIME ===')
+    noise_feats = find_noise_feats_by_GraphLIME(model, data, args)
+    #print("noise_feats_graphlime",noise_feats)
+    plot_dist(noise_feats, label='GraphLIME', ymax=args.ymax, color='g')
+
+    print('=== Explain by GNNExplainer ===')
+    noise_feats = find_noise_feats_by_GNNExplainer(model, data, args)
+    plot_dist(noise_feats, label='GNNExplainer', ymax=args.ymax, color='r')
+
+    print('=== Explain by LIME ===')
+    noise_feats = find_noise_feats_by_LIME(model, data, args)
+    plot_dist(noise_feats, label='LIME', ymax=args.ymax, color='C0')
+
+    print('=== Explain by Greedy ===')
+    noise_feats = find_noise_feats_by_greedy(model, data, args)
+    plot_dist(noise_feats, label='Greedy', ymax=args.ymax, color='orange')
+
+    print('=== Explain by Random ===')
+    noise_feats = find_noise_feats_by_random(data, args)
+    plot_dist(noise_feats, label='Random', ymax=args.ymax, color='k',
+              title=f'Distribution of noisy features on {args.dataset} for {model.__class__.__name__}')
+
+    plt.show()
+                    #f'#,
+              #save_path=f'C:/Users/vidhy/PycharmProjects/GNTM2/results/{args.dataset.lower()}.png')
+               #save_path=f'{DIRNAME}/results/{args.dataset.lower()}.png')
+
+
+
+
+if __name__ == "__main__":
+    main()

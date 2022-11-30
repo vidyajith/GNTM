@@ -15,6 +15,7 @@ from torch_geometric.data import DataLoader, Data
 from dataPrepare.utils import VocabEntry
 import ipdb
 import random
+from graphlime import GraphLIME
 # torch.set_default_tensor_type(torch.DoubleTensor)
 
 clip_grad = 20.0
@@ -33,7 +34,7 @@ def init_config():
     parser.add_argument('--model_type', type=str, default='GDGNNMODEL')
     parser.add_argument('--prior_type', type=str, default='Gaussian')
     parser.add_argument('--enc_nh', type=int, default=128)
-    parser.add_argument('--num_topic', type=int, default=100)
+    parser.add_argument('--num_topic', type=int, default=15)
     parser.add_argument('--batch_size', type=int, default=5)
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--learning_rate', type=float, default=0.001)
@@ -114,7 +115,7 @@ def init_config():
 
 
 def test(model, test_loader, mode='VAL', verbose=True):
-    print("entered test mode")
+    print("entered test mode 1")
     model.eval()  # switch to testing mode
     num_sent = 0
     val_output = {}
@@ -163,17 +164,28 @@ def main(args):
     path = todatapath(args.dataset)
     stop_str = '_stop' if args.STOPWORD else ''
     dataset = GraphDataset(path, ngram=args.nwindow, STOPWORD=args.STOPWORD)
+    print("graph_dataset",dataset)
+
     train_idxs = [i for i in range(len(dataset)) if dataset[i].train == 1]
     train_data = dataset[train_idxs]
-
+    train_data=train_data[0:2200]
+    #print("train_data[6]",train_data[6].x)
     print("train_data_size",len(train_data))
+
+
     val_idxs = [i for i in range(len(dataset)) if dataset[i].train ==-1]
     val_data = dataset[val_idxs]
-
+    val_data = val_data[0:1900]
+    #val_data=val_data[0:76]
     print("val_data_size",len(val_data))
-    test_idxs = [i for i in range(len(dataset)) if dataset[i].train == 0]
+
+
+    test_idxs = [i for i in range(len(dataset)) if dataset[i].train ==0]
     test_data = dataset[test_idxs]
+    #test_data=test_data[0:830]
+    #train_data = train_data[0:2200]
     print("test_data_size",len(test_data))
+
     vocab = dataset.vocab
     args.vocab = vocab
     args.vocab_size = len(vocab)
@@ -264,7 +276,7 @@ def main(args):
     print("args.iter_threshold",args.iter_threahold)
 
     #for epoch in range(args.num_epoch):
-    for epoch in range(0,1):
+    for epoch in range(0,2):
 
         #print("epoch_no:",args.num_epoch)
         num_sents = 0
@@ -287,7 +299,7 @@ def main(args):
             loss.backward()  # backprop
             torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
             if ALTER_TRAIN:
-                if epoch % 2 == 0:
+                if epoch % 2== 0:
                     dec_optimizer.step()
 
                 else:
@@ -316,7 +328,7 @@ def main(args):
                 opt_dict["best_loss"] = best_loss
                 opt_dict["not_improved"] = 0
                 model.load_state_dict(torch.load(args.save_path))
-        if ALTER_TRAIN and epoch % 2 == 0:
+        if ALTER_TRAIN and epoch % 2== 0:
             #print("test2")
             continue
 
@@ -349,6 +361,7 @@ def main(args):
             opt_dict["best_loss"] = val_loss
         if decay_cnt == max_decay:
             break
+
         with torch.no_grad():
             test(model, test_loader, 'TEST')
             if epoch % 5 == 0:
@@ -373,16 +386,18 @@ def main(args):
                     if args.model_type in ['GDGNNMODEL5']:
                         W = model.get_W().detach().cpu().numpy()
                         print('W', W)
+                        
                 else:
                     eval_topic(beta, [vocab.id2word(i) for i in range(args.vocab_size)])
 
-               # if args.dataset in LABELED_DATASETS:
-              #    eval_doctopic(model, test_loader)
+            if args.dataset in LABELED_DATASETS:
+                  eval_doctopic(model, test_loader)
 
         model.train()
 
     #model.load_state_dict(torch.load(args.save_path))
     model.eval()
+
     with torch.no_grad():
         test(model, test_loader, 'TEST')
         torch.cuda.empty_cache()
@@ -396,8 +411,8 @@ def main(args):
         common_texts = [text for text in data['content'].values]
         beta = model.get_beta().detach().cpu().numpy()
         eval_topic(beta, [vocab.id2word(i) for i in range(args.vocab_size)], common_texts=common_texts)
-        #if args.dataset in LABELED_DATASETS:
-            #eval_doctopic(model, test_loader)
+        if args.dataset in LABELED_DATASETS:
+            eval_doctopic(model, test_loader)
 
         if args.model_type in ['GDGNNMODEL']:
             beta_edge = model.get_beta_edge(False).detach().cpu().numpy()[:, 1:]  # 第0位为非边的权重
@@ -410,11 +425,43 @@ def main(args):
             for k in range(len(beta_edge)):
                 save_edge(whole_edge.cpu().numpy(), weights=beta_edge[k, :], vocab=vocab.id2word_,
                           fname=args.save_dir + '/beta_edge_True_%d.csv' % k)
-        if args.model_type in ['GDGNNMODEL']:
+        if args.model_type in ['model']:
             W = model.get_W().detach().cpu().numpy()
             print('W', W)
-        print("execution complete")
+        
+        
+        node_idx = 7
 
+        # instantiate a GraphLIME object
+        explainer = GraphLIME(model, hop=2, rho=0.1, cached=True)
+
+        # explain node features by calling the method `explain_node()`
+        coefs = explainer.explain_node(node_idx,train_data.x,whole_edge.cpu().numpy())
+        print(coefs)
+
+        plt.figure(figsize=(16, 4))
+
+        x = list(range(data.num_node_features))
+
+        plt.bar(x, coefs, width=5.0)
+        plt.xlabel('Feature Index')
+        plt.ylabel(r'$\beta$');
+        plt.show()
+        print(f'The {np.argmax(coefs)}-th feature is the most important.')
+
+        
+        from torch_geometric.nn import GNNExplainer
+        # Initialize explainer
+        explainer = GNNExplainer(model, epochs=10, return_type='log_prob')
+        
+        # Explain node
+        node_idx = 7
+        node_feat_mask, edge_mask = explainer.explain_node(node_idx,train_data.x,train_data.edge_index)
+        print("Size of explanation: ", sum(edge_mask > 0))
+        print("execution complete")
+        
+
+#train_data[0] MyData(x=[21], edge_w=[15], edge_index=[2, 15], x_w=[21], edge_id=[15], y=[1], train=[1], graphy=[1])
 
 if __name__ == '__main__':
     args = init_config()

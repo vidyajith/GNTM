@@ -1,3 +1,4 @@
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -120,6 +121,9 @@ class GDGNNModel(nn.Module):  # model under consideration
         size = int(x_batch.max().item() + 1)
         # print("size doubtful",size)
 
+
+
+        #NVI
         # compute posterior
         #####KL theta
 
@@ -158,6 +162,7 @@ class GDGNNModel(nn.Module):  # model under consideration
             phi = theta[x_batch]
 
         ##### generate structure
+
         W = self.get_W()  # (K, K)  after sigmod
         log_PW = (W).log()  # K,K
         log_NW = (1 - W).log()  # K,K
@@ -293,9 +298,25 @@ class GDGNNModel(nn.Module):  # model under consideration
         return degree
 
     def get_doctopic(self, batch_data):
+
         idx_x = batch_data.x
+        si = self.word_vec.shape[0]
+        # print("si",si)
+        idx_x = idx_x[idx_x < si]
+
+        # print("idx-w", idx_w)
+        # x_batch= batch_data.x_batch[batch_data.x_batch< 2197]
+
+        # idx_w = batch_data.x_w
+
+        # idx_w = idx_w[0:len(idx_x)]
+
         x_batch = batch_data.x_batch
+        x_batch = x_batch[0:len(idx_x)]
+
         idx_w = batch_data.x_w
+        idx_w = idx_w[0:len(idx_x)]
+
         edge_w = batch_data.edge_w
         edge_index = batch_data.edge_index  # edge_index 中的idx与idx_x对应上
         param, phi = self.encoder(idx_x, idx_w, x_batch, edge_index, edge_w)  # (B, K ) (B*len, K) B*len = B*len(idx_x)

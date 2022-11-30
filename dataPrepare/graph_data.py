@@ -3,8 +3,13 @@
 import torch
 from torch_geometric.data import InMemoryDataset
 from torch_geometric.data import Data
+from torch_geometric.utils import to_networkx
+
 from dataPrepare.utils import *
 #from utils import *
+#import networkx as nx
+#import matplotlib.pyplot as plt
+
 
 import pandas as pd
 from collections import Counter
@@ -252,3 +257,18 @@ if __name__ == '__main__':
     print('edges', data.data.edge_w.sum().item())
     print('vocab', len(data.vocab))
 
+    #dataset = Planetoid('.', 'Cora', transform=NormalizeFeatures())
+
+    """"
+    data1 = data[0]
+    data1
+
+
+    plt.figure(figsize=(10, 8))
+    G = to_networkx(data1, to_undirected=True)
+    pos = nx.spring_layout(G, k=0.1)
+    nx.draw_networkx(G, with_labels=True, node_size=30)
+    plt.title('TMN');
+    plt.show()
+
+    """
