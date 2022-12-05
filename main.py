@@ -29,11 +29,11 @@ ANNEAL_RATE =0.00003
 
 def init_config(): #getting some arguments for the model
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='TMN')
+    parser.add_argument('--dataset', type=str, default='News20')
     parser.add_argument('--model_type', type=str, default='GDGNNMODEL')
     parser.add_argument('--prior_type', type=str, default='Gaussian')
     parser.add_argument('--enc_nh', type=int, default=128)
-    parser.add_argument('--num_topic', type=int, default=100)
+    parser.add_argument('--num_topic', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=5)
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--learning_rate', type=float, default=0.001)

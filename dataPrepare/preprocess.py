@@ -351,6 +351,6 @@ if __name__ == '__main__':
     print("addresss",NEWS20_ADDR)
     # TMN_ADDR='C:/Users/rbw19/OneDrive/Desktop/GNTM/data/tmn3/'
     data.to_csv(NEWS20_ADDR  + '/overall.csv', header=True, index=False, quoting=1)#convert dataframe to csv file
-    clean_vocab(NEWS20_ADDR , freq_threshold=10, STOPWORD=False)
+    clean_vocab(NEWS20_ADDR , freq_threshold=20, STOPWORD=True)
     select_embedding(NEWS20_ADDR, STOPWORD=False)
     #eos_unk_pad_emd()
