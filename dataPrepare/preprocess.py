@@ -45,7 +45,7 @@ stopwords = {
     'unk': 1
 
 }
-word_len_threshold = 2
+word_len_threshold = 7
 
 np.random.seed(6)
 

@@ -2,7 +2,7 @@ import torch
 from torch_geometric.data import InMemoryDataset
 from torch_geometric.data import Data
 from dataPrepare.utils import VocabEntry
-# from dataPrepare.utils import *
+from dataPrepare.utils import *
 # from utils import *
 
 import pandas as pd
