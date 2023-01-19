@@ -29,16 +29,16 @@ ANNEAL_RATE =0.00003
 
 def init_config(): #getting some arguments for the model
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='News20')
+    parser.add_argument('--dataset', type=str, default='TMN')
     parser.add_argument('--model_type', type=str, default='GDGNNMODEL')
     parser.add_argument('--prior_type', type=str, default='Gaussian')
     parser.add_argument('--enc_nh', type=int, default=128)
-    parser.add_argument('--num_topic', type=int, default=10)
+    parser.add_argument('--num_topic', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=5)
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--momentum', type=float, default=0.90)
-    parser.add_argument('--num_epoch', type=int, default=2)
+    parser.add_argument('--num_epoch', type=int, default=5)
     parser.add_argument('--init_mult', type=float, default=1.0)  # multiplier in initialization of decoder weight
     parser.add_argument('--device', default='cpu')  # do not use GPU acceleration
     parser.add_argument('--eval', action='store_true', default=False)
@@ -64,7 +64,7 @@ def init_config(): #getting some arguments for the model
     args = parser.parse_args()
      # load_str = '_eval' if args.eval else ''
     save_dir = ROOTPATH + "/models/%s/%s_%s/" % (args.dataset, args.dataset, args.model_type) #some default are there
-    print("###Save dir######",save_dir)
+    # print("###Save dir######",save_dir)
     opt_str = '_%s_m%.2f_lr%.4f' % (args.optimizer, args.momentum, args.learning_rate)
 
     seed_set = [783435, 101, 202, 303, 404, 505, 606, 707, 808, 909] #what is this ?
@@ -91,7 +91,7 @@ def init_config(): #getting some arguments for the model
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     args.save_dir = save_dir
-    print("save dir", args.save_dir)
+    # print("save dir", args.save_dir)
     args.save_path = os.path.join(save_dir, 'model.pt')
     # print("save path", args.save_path)
 
@@ -119,11 +119,14 @@ def test(model, test_loader, mode='VAL', verbose=True):
     model.eval()  # switch to testing mode
     num_sent = 0
     val_output = {}
+    # print("test loader",test_loader)
     for batch in test_loader:
+        # print("$$$$ inside for loop $$$$$")
         batch = batch.to(device)
         batch_size = batch.y.size(0)
         outputs = model.loss(batch)
         for key in outputs:
+            # print("@@ key @@",key)
             if key not in val_output:
                 val_output[key] = 0
             val_output[key] += outputs[key].item() * batch_size
@@ -164,19 +167,22 @@ def main(args):
     print("#######args.dataset####333",args.dataset)
     path = todatapath(args.dataset)
     stop_str = '_stop' if args.STOPWORD else ''
-    print("###########PATH from main file##########33",path)
+    # print("###########PATH from main file##########33",path)
+    print("######## Dataset path :",path)
     dataset = GraphDataset(path, ngram=args.nwindow, STOPWORD=args.STOPWORD)
-    train_idxs = [i for i in range(len(dataset)) if dataset[i].train == 1]
-    train_data = dataset[train_idxs]
 
+    train_idxs = [i for i in range(len(dataset)) if dataset[i].train == 1] #.train=1 taken for train if .train=-1 and .train=0 taken for testing 
+    train_data = dataset[train_idxs]
     print("train_data_size",len(train_data))
+
     val_idxs = [i for i in range(len(dataset)) if dataset[i].train ==-1]
     val_data = dataset[val_idxs]
-
     print("val_data_size",len(val_data))
+
     test_idxs = [i for i in range(len(dataset)) if dataset[i].train == 0]
+    # print('@@@@@@@@@@ index of test data @@@@@@@@@@@@',test_idxs)
     test_data = dataset[test_idxs]
-    print("test_data_size",len(test_data))
+    print("##### test_data_size #####",len(test_data))
     vocab = dataset.vocab
     args.vocab = vocab
     args.vocab_size = len(vocab)
@@ -230,6 +236,7 @@ def main(args):
         torch.cuda.empty_cache()
         if 'TMN' in args.dataset:
             refpath = todatapath('TMN')
+            print('Refpath',refpath + '/overall%s.csv' % stop_str)
             data = pd.read_csv(refpath + '/overall%s.csv' % stop_str, header=0, dtype={'label': int, 'train': int})
 
         else:
@@ -266,8 +273,8 @@ def main(args):
     args.iter_threahold = max(30 * len(train_loader), 2000)
     print("args.iter_threshold",args.iter_threahold)
 
-    #for epoch in range(args.num_epoch):
-    for epoch in range(0,1):
+    for epoch in range(args.num_epoch):
+    # for epoch in range(0,1):
 
         #print("epoch_no:",args.num_epoch)
         num_sents = 0

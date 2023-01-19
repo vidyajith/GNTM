@@ -13,3 +13,6 @@ EOS_UNK_PAD_EMD = DATAPATH +'word2vec/EOS_UNK_PAD_300d.dct.npy'
 
 
 LABELED_DATASETS=['News20','TMN']
+
+
+

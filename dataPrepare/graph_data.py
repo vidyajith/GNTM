@@ -1,9 +1,11 @@
 import torch
 from torch_geometric.data import InMemoryDataset
 from torch_geometric.data import Data
-from dataPrepare.utils import VocabEntry
-from dataPrepare.utils import *
-# from utils import *
+try:
+    from dataPrepare.utils import VocabEntry
+    from dataPrepare.utils import *
+except:
+    from utils import *
 
 import pandas as pd
 from collections import Counter
@@ -177,15 +179,15 @@ class MyData(Data):
 
 class GraphDataset(InMemoryDataset):
     def __init__(self, root, ngram=3, vocab=None, transform=None, pre_transform=None, STOPWORD=True,
-                 edge_threshold=10):
+                    edge_threshold=15):
         self.rootPath =root
         print(self.rootPath)
         self.stop_str = '_stop' if STOPWORD else ''
         self.edge_threshold = edge_threshold
         if vocab is None:
             print("############ root path ############",self.rootPath)
-            print("##############from graph data#############",self.rootPath + '/vocab%s.txt' % self.stop_str)
-            self.vocab = VocabEntry.from_corpus(self.rootPath + '/vocab%s.txt' % self.stop_str, withpad=False)
+            print("##############from graph data#############",self.rootPath + 'vocab%s.txt' % self.stop_str)
+            self.vocab = VocabEntry.from_corpus(self.rootPath + 'vocab%s.txt' % self.stop_str, withpad=False)
             # self.vocab.add(';')
         else:
             self.vocab = vocab
@@ -244,11 +246,19 @@ class GraphDataset(InMemoryDataset):
 if __name__ == '__main__':
     from settings import *
     from graph_data import GraphDataset
-
-    data = GraphDataset(root=NEWS20_ADDR,STOPWORD=True, ngram=3, edge_threshold=10)#INITIALLY 10
+    import argparse
+    parser = argparse.ArgumentParser()
+    print("################## inside graph data  ####################")
+    parser.add_argument('--dataset', type=str, default='TMN')
+    parser.add_argument('--address', type=str, default='C:/Users/rbw19/OneDrive/Desktop/GNTM/data/tmn3')
+    parser.add_argument('--edge_threshold',type=int,default=3)
+    args = parser.parse_args()
+    # print(" from graph_data ",args.address,args.dataset,args.edge_threshold)
+    data = GraphDataset(root=args.address,STOPWORD=True, ngram=3, edge_threshold=args.edge_threshold)#INITIALLY 10
     print('docs', len(data))
     print('the whole edge set', data.whole_edge.shape)
     print('data split',Counter(data.data.train.cpu().numpy()))
     print('tokens', data.data.x_w.sum().item())
     print('edges', data.data.edge_w.sum().item())
     print('vocab', len(data.vocab))
+    print("################# graph data executed #############3")

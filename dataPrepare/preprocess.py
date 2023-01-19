@@ -2,11 +2,12 @@
 import sys
 sys.path.append("../")
 from settings import *
-from settings import TMN_ADDR
+from settings import TMN_ADDR,Reuters_ADDR,NEWS20_ADDR,BNC_ADDR
 import re
 import pandas as pd
 import numpy as np
 import os
+import argparse
 
 stopwords = {
     'max>\'ax>\'ax>\'ax>\'ax>\'ax>\'ax>\'ax>\'ax>\'ax>\'ax>\'ax>\'ax>\'ax>\'ax': 1,
@@ -45,7 +46,7 @@ stopwords = {
     'unk': 1
 
 }
-word_len_threshold = 7
+
 
 np.random.seed(6)
 
@@ -53,7 +54,7 @@ np.random.seed(6)
 def load_stopwords(lanague='EN'):
     # url: https://github.com/igorbrigadir/stopwords/blob/master/en/gensim.txt
     if lanague == 'EN':
-        stopwords_file ="EN_gensim_stopword.txt"  
+        stopwords_file ="../EN_gensim_stopword.txt"  
     else:
         stopwords_file = "EN_gensim_stopword.txt"
     with open(stopwords_file, mode='r', encoding='utf-8') as reader:
@@ -149,12 +150,11 @@ def process_dataset(dataset='AG', STOPWORD=False):
 
 
     elif dataset == 'TMN':
-        #path = TMN_ADDR + '\\raw\\'
-        #path="C:/Users/vidhy/PycharmProjects/GNN/"
+        print("inside TMN preprocess")
         data1 = open("tagmynews.txt",encoding="utf8").readlines()
         N = int(len(data1)/8) #initial
         #N = int(len(data1) / 4)
-        print("length of data divided by 8",N)
+        # print("length of data divided by 8",N)
         ldct={}
         values = []
         for i in range(N):
@@ -176,21 +176,25 @@ def process_dataset(dataset='AG', STOPWORD=False):
         data['train'] = 1
         data.iloc[ids, -1] = 0
         data.iloc[ids2, -1] = -1
+        print("Preprocess TMN finidhed")
 
     elif dataset in ['Reuters']:
         path = Reuters_ADDR+'/raw'
-
         train_path = path+'/training/'
         trains = os.listdir(train_path)
+        # print('trains',trains)
         data1=[]
         for t in trains:
             f = train_path+t
+            # print("### File name ####",f)
             text = ' '.join([str(l).strip() for l in open(f, 'rb').readlines()])
             data1.append(text)
         data1 = pd.DataFrame(data1, columns=[ 'content'])
         data1['train'] = 1
         N = len(data1)
+        # print('#### length of the data1 ####',len(data1))
         ids = np.random.choice(range(N), size=int(N / 8), replace=False, p=None)
+        # print('### IDS ###',ids,type(ids))
         data1.iloc[ids, -1] = -1
 
         test_path = path + '/test/'
@@ -209,15 +213,16 @@ def process_dataset(dataset='AG', STOPWORD=False):
     data = data.reset_index()
     data['idx'] = data.index
 
-    print("data_contents from preprocessing")
-    print(data['content'].values[0])
+    # print("data_contents from preprocessing")
+    # print(data['content'].values[0])
     vocab = {}
     labels = []
     contents = []
     # data = data.iloc[:10, :]
     for i, row in enumerate(data[['label','content']].values):
         if i % 1000 == 0:
-            print(i)
+            # print(i)
+            pass
         label = row[0]
         content = row[1]
         sents = parse_sent(content)
@@ -311,7 +316,8 @@ def select_embedding(path, nw=300, STOPWORD=False):
             words_found[w]
             idxlist.append(word2id[w])
         except:
-            print(w, len(w))
+            # print(w, len(w))
+            pass
     # for i in range(4):
     #     if i not in idxlist:
     #         idxlist = [i] + idxlist
@@ -329,7 +335,7 @@ def select_embedding(path, nw=300, STOPWORD=False):
                 newf.write(line)
             except:
                 continue
-    print(len(words), len(words_found))
+    # print(len(words), len(words_found))
 
 def eos_unk_pad_emd(nw=300):
     EOS_UNK_PAD={}
@@ -344,13 +350,24 @@ def eos_unk_pad_emd(nw=300):
 
 
 if __name__ == '__main__':
-    data, vocab = process_dataset(dataset='News20', STOPWORD=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--word_len_threshold', type=int, default=2)
+    parser.add_argument('--dataset', type=str, default='TMN')
+    parser.add_argument('--address', type=str, default='C:/Users/rbw19/OneDrive/Desktop/GNTM/data/tmn3/')
+    parser.add_argument('--freq_threshold',type=int,default=5)
+    
+    args = parser.parse_args()
+    # print('### args.dataset ####',args.address)
+    word_len_threshold = args.word_len_threshold  #2 is the default https://github.com/SmilesDZgk/GNTM/blob/master/dataPrepare/preprocess.py
+
+    data, vocab = process_dataset(dataset=args.dataset, STOPWORD=True)
     print("data_length",len(data))
 
     print("vocab_length",len(vocab))
-    print("addresss",NEWS20_ADDR)
+    print("addresss",args.address)
     # TMN_ADDR='C:/Users/rbw19/OneDrive/Desktop/GNTM/data/tmn3/'
-    data.to_csv(NEWS20_ADDR  + '/overall.csv', header=True, index=False, quoting=1)#convert dataframe to csv file
-    clean_vocab(NEWS20_ADDR , freq_threshold=20, STOPWORD=True)
-    select_embedding(NEWS20_ADDR, STOPWORD=False)
+    data.to_csv(args.address  + 'overall_stop.csv', header=True, index=False, quoting=1)#convert dataframe to csv file
+    clean_vocab(args.address , freq_threshold=args.freq_threshold, STOPWORD=True)
+    select_embedding(args.address, STOPWORD=True)
+    print("@end ok preprocess")
     #eos_unk_pad_emd()
