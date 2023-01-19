@@ -1,9 +1,12 @@
 import torch
 from torch_geometric.data import InMemoryDataset
 from torch_geometric.data import Data
-from dataPrepare.utils import VocabEntry
-# from dataPrepare.utils import *
-from utils import *
+
+try:
+    from dataPrepare.utils import VocabEntry
+    from dataPrepare.utils import *
+except:
+    from utils import *
 
 import pandas as pd
 from collections import Counter
